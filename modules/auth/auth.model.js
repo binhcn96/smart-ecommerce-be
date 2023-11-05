@@ -61,8 +61,8 @@ const getUserByEmail = async (email) => {
 
 const getUserById = async (user_id) => {
   try {
-    const result = await db('users')
-      .leftJoin('shop_accounts', 'shop_accounts.user_id', 'users.id')
+    const result = await db('users as users')
+      // .leftJoin('shop_accounts', 'shop_accounts.user_id', 'users.id')
       .select(
         'users.id',
         'users.user_name',
@@ -70,9 +70,9 @@ const getUserById = async (user_id) => {
         'users.phone_number',
         'users.address',
         'users.profile_picture',
-        'shop_accounts.id as shop_id',
-        'shop_accounts.shop_name',
-        'shop_accounts.shop_account_status'
+        // 'shop_accounts.id as shop_id',
+        // 'shop_accounts.shop_name',
+        // 'shop_accounts.shop_account_status'
       )
       .where('users.id', user_id);
     return result ? result[0] : null;
@@ -218,7 +218,7 @@ const checkField = async (obj) => {
     const result = await db('users')
       .where(obj)
       .first();
-    return !!result;
+    return result;
   } catch (error) {
     console.log(error);
     return false;

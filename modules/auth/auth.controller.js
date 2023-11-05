@@ -3,7 +3,7 @@ const bcrypt = require('bcrypt');
 const fastCsv = require('fast-csv');
 const admin = require('firebase-admin');
 const { OAuth2Client } = require('google-auth-library');
-const { uuid } = require('uuidv4');
+const { v4: uuidv4 } = require('uuid');
 const HttpError = require('../../common/httpError');
 const tokenProvider = require('../../common/tokenProvider');
 const authModel = require('./auth.model');
@@ -78,7 +78,7 @@ const createUser = async (req, res, next) => {
     const hashPassword = bcrypt.hashSync(password, salt);
 
     // tìm  user trong db
-    const existedUser = await authModel.getUserAdminByEmail(email);
+    const existedUser = await authModel.getUserByEmail(email);
     if (existedUser) {
       throw new HttpError('Email existed', 400);
     }
@@ -103,10 +103,10 @@ const login = async (req, res, next) => {
   const { email, password, recapchaToken } = req.body;
   const { eventIo } = req;
 
-  const isVerify = await verifyRecapcha(recapchaToken);
-  if (!isVerify.data.success) {
-    throw new HttpError('recapcha is not verify', 400);
-  }
+  // const isVerify = await verifyRecapcha(recapchaToken);
+  // if (!isVerify.data.success) {
+  //   throw new HttpError('recapcha is not verify', 400);
+  // }
   const existedUser = await authModel.getUserByEmail(email);
 
   if (!existedUser) {
@@ -120,7 +120,7 @@ const login = async (req, res, next) => {
   const data = {
     id: existedUser.id,
     email: existedUser.email,
-    username: existedUser.user_name,
+    user_name: existedUser.user_name,
     phone_number: existedUser.phone_number,
     address: existedUser.address,
     profile_picture: existedUser.profile_picture,
@@ -129,7 +129,7 @@ const login = async (req, res, next) => {
   const dataToken = {
     id: existedUser.id,
     email: existedUser.email,
-    username: existedUser.user_name,
+    user_name: existedUser.user_name,
   };
 
   const accessToken = tokenProvider.createToken(dataToken);
@@ -141,7 +141,7 @@ const login = async (req, res, next) => {
   if (!isUpdate) {
     throw new HttpError('server error', 500);
   }
-  const listCvs = await joinRoomConversation(existedUser.id, eventIo);
+  // const listCvs = await joinRoomConversation(existedUser.id, eventIo);
   res.send({
     status: true,
     data: {
@@ -158,7 +158,7 @@ const getMe = async (req, res, next) => {
   if (!userInfo) {
     throw new HttpError('user is not existed', 400);
   }
-  const listCvs = await joinRoomConversation(user.id, eventIo);
+  // const listCvs = await joinRoomConversation(user.id, eventIo);
   res.send({
     status: 'success',
     data: userInfo,
@@ -230,8 +230,24 @@ const deleteUserById = async (req, res) => {
 
 const updateUser = async (req, res, next) => {
   const { user } = req;
-  const data = req.body;
-  const isUserUpdate = await authModel.updateUserInfo(user.id, data);
+  const { fieldName, fieldValue } = req.body;
+  let dataUpdate;
+  switch (fieldName) {
+    case 'email':
+      dataUpdate = {
+        access_key_email: uuidv4()
+      };
+      break;
+    case 'user_name':
+      dataUpdate = {
+        user_name: fieldValue
+      };
+      break;
+
+    default:
+      break;
+  }
+  const isUserUpdate = await authModel.updateUserInfo(user.id, dataUpdate);
   if (!isUserUpdate) {
     throw new HttpError('server error', 400);
   }
@@ -383,37 +399,27 @@ const uploadAvatar = async (req, res, next) => {
 };
 
 const checkFieldExist = async (req, res, next) => {
-  try {
-    const { user } = req;
-    const { fieldName, fieldValue } = req.body;
-    const result = await authModel.checkField({ [fieldName]: fieldValue });
-    if (result) {
-      throw new HttpError('Field exist in system', 402);
-    }
-    res.send({
-      status: 'success'
-    });
-  } catch (error) {
-    console.log(error);
-    throw new HttpError('server error', 500);
+  const { user } = req;
+  const { fieldName, fieldValue } = req.body;
+  const result = await authModel.checkField({ [fieldName]: fieldValue });
+  if (result) {
+    throw new HttpError('Field exist in system', 402);
   }
+  res.send({
+    status: 'success'
+  });
 };
 
 const changeEmailProfile = async (req, res, next) => {
-  try {
-    const { user } = req;
-    const { fieldName, fieldValue } = req.body;
-    const result = await authModel.updateUserInfo(user.id, { access_key_email: uuid() });
-    if (!result) {
-      throw new HttpError('server error', 500);
-    }
-    res.send({
-      status: 'success'
-    });
-  } catch (error) {
-    console.log(error);
+  const { user } = req;
+  const { fieldName, fieldValue } = req.body;
+  const result = await authModel.updateUserInfo(user.id, { access_key_email: uuidv4() });
+  if (!result) {
     throw new HttpError('server error', 500);
   }
+  res.send({
+    status: 'success'
+  });
 };
 
 module.exports = {
