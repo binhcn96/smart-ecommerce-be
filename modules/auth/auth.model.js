@@ -201,7 +201,8 @@ const getUserInfo = async (id) => {
       .select(
         'refresh_token',
         'id',
-        'user_name'
+        'user_name',
+        'password'
       )
       .where({
         id

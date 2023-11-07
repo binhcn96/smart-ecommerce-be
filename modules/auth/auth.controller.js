@@ -1,3 +1,4 @@
+/* eslint-disable no-case-declarations */
 const { default: axios } = require('axios');
 const bcrypt = require('bcrypt');
 const fastCsv = require('fast-csv');
@@ -103,10 +104,10 @@ const login = async (req, res, next) => {
   const { email, password, recapchaToken } = req.body;
   const { eventIo } = req;
 
-  // const isVerify = await verifyRecapcha(recapchaToken);
-  // if (!isVerify.data.success) {
-  //   throw new HttpError('recapcha is not verify', 400);
-  // }
+  const isVerify = await verifyRecapcha(recapchaToken);
+  if (!isVerify.data.success) {
+    throw new HttpError('recapcha is not verify', 400);
+  }
   const existedUser = await authModel.getUserByEmail(email);
 
   if (!existedUser) {
@@ -230,7 +231,8 @@ const deleteUserById = async (req, res) => {
 
 const updateUser = async (req, res, next) => {
   const { user } = req;
-  const { fieldName, fieldValue } = req.body;
+  const { fieldName, fieldData } = req.body;
+  const userInfo = await authModel.getUserInfo(user.id);
   let dataUpdate;
   switch (fieldName) {
     case 'email':
@@ -239,8 +241,21 @@ const updateUser = async (req, res, next) => {
       };
       break;
     case 'user_name':
+    case 'address':
+    case 'phone_number':
       dataUpdate = {
-        user_name: fieldValue
+        [fieldName]: fieldData[fieldName]
+      };
+      break;
+    case 'password':
+      const isMatch = bcrypt.compareSync(fieldData.old_password, userInfo.password);
+      if (!isMatch) {
+        throw new HttpError('Password is not match', 400);
+      }
+      const salt = bcrypt.genSaltSync(10);
+      const hashPassword = bcrypt.hashSync(fieldData.new_password, salt);
+      dataUpdate = {
+        password: hashPassword
       };
       break;
 
